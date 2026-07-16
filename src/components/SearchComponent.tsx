@@ -5,8 +5,10 @@ import React, { useEffect, useRef, useState } from "react"
 import { useQuery } from "react-query"
 import { Alert } from "./ui/alert"
 import { Link } from "wouter"
-import { CircuitBoard } from "lucide-react"
+import { CircuitBoard, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useGlobalStore } from "@/hooks/use-global-store"
+import { Button } from "@/components/ui/button"
 
 interface SearchComponentProps {
   onResultsFetched?: (results: any[]) => void
@@ -59,6 +61,8 @@ const SearchComponent: React.FC<SearchComponentProps> = ({
   const resultsRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [location, setLocation] = useLocation()
+  const session = useGlobalStore((s) => s.session)
+  const currentUserHandle = session?.tscircuit_handle
 
   const { data: searchResults, isLoading } = useQuery(
     ["packageSearch", searchQuery],
@@ -207,12 +211,14 @@ const SearchComponent: React.FC<SearchComponentProps> = ({
                   pkg.latest_sch_preview_image_url ??
                   undefined
                 const hasPreviewImage = Boolean(previewImageUrl)
+                const ownerName = pkg.name.split("/")[0]
+                const isOwner = currentUserHandle && ownerName === currentUserHandle
 
                 return (
                   <li
                     key={pkg.package_id}
                     className={cn(
-                      "p-2 hover:bg-gray-50",
+                      "p-2 hover:bg-gray-50 flex items-center justify-between group relative",
                       index === highlightedIndex && "bg-gray-100",
                     )}
                   >
@@ -223,7 +229,7 @@ const SearchComponent: React.FC<SearchComponentProps> = ({
                           : `/${pkg.name}`
                       }
                       shouldOpenInNewTab={shouldOpenInNewTab}
-                      className="flex"
+                      className="flex flex-grow items-center min-w-0"
                       onClick={() => {
                         setShowResults(false)
                         if (closeOnClick) closeOnClick()
@@ -253,17 +259,39 @@ const SearchComponent: React.FC<SearchComponentProps> = ({
                           <CircuitBoard className="w-6 h-6 text-gray-300" />
                         </div>
                       </div>
-                      <div className="flex-grow">
-                        <div className="font-medium text-blue-600 break-words text-xs">
+                      <div className="flex-grow min-w-0">
+                        <div className="font-medium text-blue-600 break-words text-xs truncate">
                           {pkg.name}
                         </div>
                         {pkg.description && (
-                          <div className="text-xs text-gray-500 break-words h-8 overflow-hidden">
+                          <div className="text-xs text-gray-500 break-words h-8 overflow-hidden line-clamp-2">
                             {pkg.description}
                           </div>
                         )}
                       </div>
                     </LinkWithNewTabHandling>
+
+                    {isOwner && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 ml-2 flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          const href = `/editor?package_id=${pkg.package_id}`
+                          if (shouldOpenInNewTab) {
+                            window.open(href, "_blank")
+                          } else {
+                            setLocation(href)
+                          }
+                          setShowResults(false)
+                          if (closeOnClick) closeOnClick()
+                        }}
+                      >
+                        <Pencil className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                      </Button>
+                    )}
                   </li>
                 )
               })}
